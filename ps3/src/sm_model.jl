@@ -41,13 +41,22 @@ function solve_model(p; target_πue = false, κ = false)
         f(θ) = wage_supply(θ, κ; p) - wage_demand(θ, κ; p)
         return find_zero(f, 1)
     end
+
+    function compute_equilibrium_κ(θ)
+        f(κ) = wage_supply(θ, κ; p) - wage_demand(θ, κ; p)
+        return find_zero(f, 1)
+    end
     
     equilibrium_πue(θ) = m(θ^-1, 1) * θ
 
     # Calibrate κ if target_πue is specified
     if target_πue != false
-        g(κ) = equilibrium_πue(compute_equilibrium_θ(κ)) - target_πue
-        κ_calib = find_zero(g, 1)
+        # Find θ implied by definition of πue
+        g(θ) = m(1, θ) - target_πue
+        eqθ = find_zero(g, 1)
+
+        # Find κ implied by that θ
+        κ_calib = compute_equilibrium_κ(eqθ)        
     else κ_calib = κ
     end
 
@@ -68,7 +77,7 @@ function solve_model(p; target_πue = false, κ = false)
 
     equilibrium_v(u, θ) = θ * u
 
-    eqθ = compute_equilibrium_θ(κ_calib)
+    if target_πue == false eqθ = compute_equilibrium_θ(κ_calib) end
     eqw = compute_equilibrium_w(κ_calib)
     equ = compute_equilibrium_u(eqθ)
     eqv = equilibrium_v(equ, eqθ)
@@ -100,7 +109,7 @@ cs_b = [solve_model(SM(b = b); κ = κ_calib) for b in b_grid]
 plot(b_grid, columntable(cs_b).v, label = "Vacancies")
 plot!(b_grid, columntable(cs_b).u, label = "Unemployment", legend=:left)
 plot!(b_grid, columntable(cs_b).w, label = "Wage", legend=:right)
-plot!(legend=:topright)
+plot!(legend=:right)
 
 savefig("bld/comp_stats_b.png")
 
@@ -114,8 +123,10 @@ plot!(ψ_grid, columntable(cs_ψ).w, label = "Wage", legend=:right)
 plot!(ψ_grid, columntable(cs_ψ).θ, label = "Tightness", legend=:left)
 plot!(legend=:bottomright)
 
-savefig("bld/comp_stats_ψ.png")
+savefig("bld/comp_stats_psi.png")
 # TODO vacancies are not right
+# Increases in separation rates --> Less vacancy posting, lower wage, and higher unemployment
+# Tightness falls
 πeu_grid = range(0.001, 0.1, 50)
 
 cs_πeu = [solve_model(SM(πeu = πeu); κ = κ_calib) for πeu in πeu_grid]
@@ -125,12 +136,14 @@ plot!(πeu_grid, columntable(cs_πeu).w, label = "Wage", legend=:right)
 plot!(πeu_grid, columntable(cs_πeu).θ, label = "Tightness", legend=:left)
 plot!(legend=:right)
 
-savefig("bld/comp_stats_πeu.png")
+savefig("bld/comp_stats_pieu.png")
 # TODO again, vacancies are wrong
 
-SM(A = 2)
-
+## Exercise 7
 # Model solution for b = 0.4
+equ = solve_model(SM(); κ = κ_calib).u
+equ_highA = solve_model(SM(A=1.05); κ = κ_calib).u
+
 A_grid = range(0.75, 1.25, 50)
 
 solutions = [solve_model(SM(A = a); κ = κ_calib).u for a in A_grid]
@@ -138,17 +151,13 @@ solutions = [solve_model(SM(A = a); κ = κ_calib).u for a in A_grid]
 plot(A_grid, solutions, label = "Unemployment Rate (b = 0.4)")
 
 # Model solution for b = 0.95
-p_highb = SM(b = 0.7)
+p_highb = SM(b = 0.95)
 κ_calib_highb = solve_model(p_highb; target_πue = 0.25).κ
-A_grid_highb = range(0.8, 1.25, 50)
-solutions_highb = [solve_model(SM(A = a, b = 0.7); κ = κ_calib_highb).u for a in A_grid_highb]
 
-plot!(A_grid_highb, solutions_highb, label = "Unemployment Rate (b = 0.7)")
+equ_highb = solve_model(p_highb; κ = κ_calib_highb).u
+equ_highb_highA = solve_model(SM(b = 0.95, A=1.05); κ = κ_calib_highb).u
 
-x = range(0, 2, 1000)
-plot(x, log.(1 .+ x))
-plot(x, log.(1 .+ x))
-plot!(x, log.(x))
+A_grid_highb = range(1, 1.05, 50)
+solutions_highb = [solve_model(SM(A = a, b = 0.95); κ = κ_calib_highb).u for a in A_grid_highb]
 
-# kappa = 1.025
-# 
+plot!(A_grid_highb, solutions_highb, label = "Unemployment Rate (b = 0.95)")
