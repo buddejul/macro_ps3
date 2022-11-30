@@ -1,0 +1,72 @@
+------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  C:\research\courses\macro\ps3_julia\ps3/bld/clean.log
+  log type:  text
+ opened on:  29 Nov 2022, 17:09:53
+
+. 
+. use "$root/src/data/cepr_org_1990", clear
+(CEPR ORG Extract, Version 2.5, 1990)
+
+. 
+. local vars hhid lineno year month empl unem fnlwgt age orgwgt educ wbho
+
+. 
+. keep `vars'
+
+. 
+. gisid hhid month lineno
+
+. 
+. forvalues i=1990(1)2019{
+  2.     qui append using "$root/src/data/cepr_org_`i'", keep(`vars')
+  3. }
+
+. 
+. cap noi gisid year hhid month lineno
+radixSort: Unable to allocate memory for object 'ixcopy'.
+See help gcollapse (Out of memory).
+
+. // TODO this is not identifier, why?
+. 
+. * Drop age < 16 (not no missings)
+. keep if age >= 16
+(0 observations deleted)
+
+. drop age
+
+. 
+. gen weight = round(orgwgt/12,1)
+(37,510 missing values generated)
+
+. 
+. * Collapse on month level
+. gen byte all = 1
+
+. rename wbho race
+
+. 
+. foreach group in all education race{
+  2. 
+.     gcollapse (sum) empl unem [fw = weight], by(year month `group')
+  3. 
+.     gen unemprate_`group' = unem/empl
+  4. 
+.     keep year month unemprate_`group'
+  5. 
+.     histogram unemprate_`group'
+  6. 
+.     graph export "$root/bld/unemprate_`group'_cps.png", replace
+  7. 
+.     rename unemprate_`group' unemprate_`group'_cps
+  8.     tempfile cps_`group'
+  9.     save `cps_`group''
+ 10. }
+I/O error writing .dta file
+    Usually such I/O errors are caused by the disk or file system being full.
+r(693);
+
+end of do-file
+
+r(693);
+
